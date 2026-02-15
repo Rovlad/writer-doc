@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Словарь Писателя{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    {% block head %}{% endblock %}
+</head>
+<body>
+    <header class="header">
+        <div class="header-inner">
+            <a href="{{ url_for('index') }}" class="logo">
+                <span class="logo-icon">С</span>
+                <div>
+                    <h1 class="logo-title">Словарь Писателя</h1>
+                    <p class="logo-sub">Анализ лексики · Словосочетания · Статистика</p>
+                </div>
+            </a>
+            <nav class="nav">
+                <a href="{{ url_for('index') }}" class="nav-link">Загрузить</a>
+                {% if session.get('analysis_id') %}
+                <a href="{{ url_for('results') }}" class="nav-link">Результаты</a>
+                <a href="{{ url_for('api_export') }}" class="nav-link nav-btn">⬇ JSON</a>
+                {% endif %}
+                <a href="{{ url_for('history') }}" class="nav-link">История</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="main">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="flash-messages">
+            {% for category, message in messages %}
+            <div class="flash flash-{{ category }}">{{ message }}</div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="footer">
+        <p>Словарь Писателя · NLP: <a href="https://github.com/natasha/natasha" target="_blank">Natasha</a> · Flask</p>
+    </footer>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

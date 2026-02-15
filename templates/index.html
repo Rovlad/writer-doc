@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block title %}Загрузить текст — Словарь Писателя{% endblock %}
+
+{% block content %}
+<div class="upload-page">
+    <div class="upload-card">
+        <h2 class="upload-title">Загрузите текстовый файл</h2>
+        <p class="upload-hint">Проза, поэзия, сборники — файл .txt в кодировке UTF-8 или Windows-1251</p>
+
+        <form action="{{ url_for('analyze') }}" method="POST" enctype="multipart/form-data" id="uploadForm">
+            <div class="dropzone" id="dropzone">
+                <input type="file" name="file" id="fileInput" accept=".txt" hidden>
+                <div class="dropzone-icon">📄</div>
+                <p class="dropzone-text">Перетащите .txt файл сюда или <span class="dropzone-link">выберите файл</span></p>
+                <span class="dropzone-hint">Максимум 16 МБ</span>
+                <div class="dropzone-file" id="fileInfo" style="display:none">
+                    <span class="file-badge" id="fileName"></span>
+                    <span class="file-size" id="fileSize"></span>
+                    <button type="button" class="file-clear" id="fileClear">✕</button>
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary" id="submitBtn" disabled>
+                Анализировать текст →
+            </button>
+        </form>
+
+        <div class="loading-overlay" id="loadingOverlay" style="display:none">
+            <div class="spinner"></div>
+            <p class="loading-text">Анализ текста — это может занять от нескольких секунд до минуты…</p>
+            <p class="loading-hint">Загрузка моделей · Токенизация · Морфология · Синтаксис · Словарь</p>
+        </div>
+    </div>
+
+    <div class="features-grid">
+        <div class="feature-card">
+            <span class="feature-icon">📖</span>
+            <strong>Словарь</strong>
+            <span class="feature-desc">Леммы, формы, частотность</span>
+        </div>
+        <div class="feature-card">
+            <span class="feature-icon">📊</span>
+            <strong>Статистика</strong>
+            <span class="feature-desc">Топ-100 сущ., прил., глаголов</span>
+        </div>
+        <div class="feature-card">
+            <span class="feature-icon">🔗</span>
+            <strong>Словосочетания</strong>
+            <span class="feature-desc">Прилагательные при каждом существительном</span>
+        </div>
+        <div class="feature-card">
+            <span class="feature-icon">🔍</span>
+            <strong>Поиск</strong>
+            <span class="feature-desc">Введите существительное → получите прилагательные</span>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const dropzone = document.getElementById('dropzone');
+const fileInput = document.getElementById('fileInput');
+const fileInfo = document.getElementById('fileInfo');
+const fileName = document.getElementById('fileName');
+const fileSize = document.getElementById('fileSize');
+const fileClear = document.getElementById('fileClear');
+const submitBtn = document.getElementById('submitBtn');
+const form = document.getElementById('uploadForm');
+const overlay = document.getElementById('loadingOverlay');
+
+dropzone.addEventListener('click', () => fileInput.click());
+dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('dragover'); });
+dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+dropzone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropzone.classList.remove('dragover');
+    if (e.dataTransfer.files.length) {
+        fileInput.files = e.dataTransfer.files;
+        showFile(e.dataTransfer.files[0]);
+    }
+});
+
+fileInput.addEventListener('change', () => {
+    if (fileInput.files.length) showFile(fileInput.files[0]);
+});
+
+fileClear.addEventListener('click', e => {
+    e.stopPropagation();
+    fileInput.value = '';
+    fileInfo.style.display = 'none';
+    submitBtn.disabled = true;
+});
+
+function showFile(file) {
+    fileName.textContent = file.name;
+    fileSize.textContent = (file.size / 1024).toFixed(1) + ' КБ';
+    fileInfo.style.display = 'flex';
+    submitBtn.disabled = false;
+}
+
+form.addEventListener('submit', () => {
+    overlay.style.display = 'flex';
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Обработка…';
+});
+</script>
+{% endblock %}

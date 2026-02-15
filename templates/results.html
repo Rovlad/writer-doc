@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+{% block title %}Результаты — {{ filename }}{% endblock %}
+
+{% block content %}
+<div class="results-page">
+
+    <!-- ── Summary Bar ───────────────────────────────────────── -->
+    <div class="summary-bar">
+        <div class="summary-left">
+            <span class="summary-file">📄 {{ filename }}</span>
+            <span class="summary-time">Обработка: {{ result.meta.processing_time_sec }} сек</span>
+        </div>
+        <div class="summary-stats">
+            <div class="stat-chip"><span class="stat-num">{{ result.statistics.total_words }}</span><span class="stat-label">слов</span></div>
+            <div class="stat-chip"><span class="stat-num">{{ result.statistics.unique_lemmas }}</span><span class="stat-label">лемм</span></div>
+            <div class="stat-chip"><span class="stat-num">{{ result.statistics.vocabulary_richness }}%</span><span class="stat-label">богатство</span></div>
+            <div class="stat-chip"><span class="stat-num">{{ result.collocations.unique_pairs }}</span><span class="stat-label">словосоч.</span></div>
+        </div>
+        <div class="summary-actions">
+            <a href="{{ url_for('api_export') }}" class="btn btn-sm">⬇ Скачать JSON</a>
+            <button class="btn btn-sm btn-accent" onclick="saveToSupabase()">💾 В Supabase</button>
+        </div>
+    </div>
+
+    <!-- ── Tabs ──────────────────────────────────────────────── -->
+    <div class="tabs-bar">
+        <button class="tab active" data-tab="statistics">📊 Статистика</button>
+        <button class="tab" data-tab="dictionary">📖 Словарь</button>
+        <button class="tab" data-tab="collocations">🔗 Словосочетания</button>
+        <button class="tab" data-tab="search">🔍 Поиск</button>
+    </div>
+
+    <!-- ════════════════════════════════════════════════════════ -->
+    <!--  STATISTICS TAB                                         -->
+    <!-- ════════════════════════════════════════════════════════ -->
+    <div class="tab-content active" id="tab-statistics">
+        <div class="stats-grid">
+            <!-- General stats -->
+            <div class="stats-card">
+                <h3 class="stats-card-title">Общая информация</h3>
+                <div class="stats-rows">
+                    <div class="stats-row"><span>Всего токенов</span><strong>{{ result.statistics.total_tokens }}</strong></div>
+                    <div class="stats-row"><span>Слов (без пунктуации)</span><strong>{{ result.statistics.total_words }}</strong></div>
+                    <div class="stats-row"><span>Уникальных лемм</span><strong>{{ result.statistics.unique_lemmas }}</strong></div>
+                    <div class="stats-row"><span>Богатство словаря</span><strong>{{ result.statistics.vocabulary_richness }}%</strong></div>
+                    <div class="stats-row"><span>Средняя длина слова</span><strong>{{ result.statistics.avg_word_length }} букв</strong></div>
+                </div>
+            </div>
+
+            <!-- POS distribution -->
+            <div class="stats-card">
+                <h3 class="stats-card-title">Части речи</h3>
+                <div class="pos-chart">
+                    {% set max_pos = result.statistics.pos_distribution.values()|max if result.statistics.pos_distribution else 1 %}
+                    {% for pos, count in result.statistics.pos_distribution.items() %}
+                    <div class="pos-row">
+                        <span class="pos-label">{{ result.statistics.pos_labels_ru.get(pos, pos) }}</span>
+                        <div class="pos-bar-wrap">
+                            <div class="pos-bar" style="width: {{ (count / max_pos * 100)|round }}%"></div>
+                        </div>
+                        <span class="pos-count">{{ count }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Top-100 tables -->
+        <h3 class="section-title">Топ-100 по частям речи</h3>
+        <div class="top-tables-grid">
+            {% for key, label in [('top_nouns', 'Существительные'), ('top_adj', 'Прилагательные'), ('top_verbs', 'Глаголы'), ('top_adv', 'Наречия')] %}
+            <div class="top-table-card">
+                <h4 class="top-table-title">{{ label }}</h4>
+                <div class="top-table-scroll">
+                    <table class="top-table">
+                        <thead><tr><th>#</th><th>Лемма</th><th>Частота</th></tr></thead>
+                        <tbody>
+                        {% for entry in result.statistics[key][:100] %}
+                        <tr>
+                            <td class="rank">{{ loop.index }}</td>
+                            <td class="lemma">{{ entry.lemma }}</td>
+                            <td class="count">{{ entry.count }}</td>
+                        </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════════════ -->
+    <!--  DICTIONARY TAB                                         -->
+    <!-- ════════════════════════════════════════════════════════ -->
+    <div class="tab-content" id="tab-dictionary">
+        <div class="toolbar">
+            <input type="text" id="dictSearch" placeholder="Поиск по лемме…" class="input">
+            <select id="dictPosFilter" class="select">
+                <option value="all">Все части речи</option>
+                <option value="NOUN">Существительные</option>
+                <option value="ADJ">Прилагательные</option>
+                <option value="VERB">Глаголы</option>
+                <option value="ADV">Наречия</option>
+                <option value="PROPN">Имена собственные</option>
+            </select>
+        </div>
+        <div class="dict-table-wrap">
+            <table class="dict-table" id="dictTable">
+                <thead>
+                    <tr>
+                        <th>Лемма</th>
+                        <th>Часть речи</th>
+                        <th>Частота</th>
+                        <th>Формы в тексте</th>
+                        <th>Пример</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for entry in result.dictionary %}
+                <tr data-pos="{{ entry.pos }}" data-lemma="{{ entry.lemma }}">
+                    <td class="lemma-cell"><strong>{{ entry.lemma }}</strong></td>
+                    <td><span class="pos-badge">{{ entry.pos }}</span></td>
+                    <td class="count-cell">{{ entry.count }}</td>
+                    <td class="forms-cell">{{ entry.surface_forms | join(', ') }}</td>
+                    <td class="example-cell">{{ entry.example }}</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════════════ -->
+    <!--  COLLOCATIONS TAB                                       -->
+    <!-- ════════════════════════════════════════════════════════ -->
+    <div class="tab-content" id="tab-collocations">
+        <p class="tab-intro">
+            Для каждого существительного — прилагательные, найденные в тексте рядом с ним
+            (через синтаксический анализ зависимостей и окно ±2 токена).
+        </p>
+        <div class="coll-grid">
+            {% for noun, adjs in result.collocations.noun_adj_index.items() | sort(attribute='0') %}
+            {% if adjs | length >= 1 %}
+            <div class="coll-card">
+                <div class="coll-noun">{{ noun }}</div>
+                <div class="coll-adjs">
+                    {% for a in adjs[:10] %}
+                    <span class="coll-adj-tag" title="×{{ a.count }}{% if a.examples %} — {{ a.examples[0] }}{% endif %}">
+                        {{ a.adj }} <small>×{{ a.count }}</small>
+                    </span>
+                    {% endfor %}
+                    {% if adjs | length > 10 %}
+                    <span class="coll-more">+{{ adjs | length - 10 }} ещё</span>
+                    {% endif %}
+                </div>
+                {% if adjs[0].examples %}
+                <div class="coll-example">«{{ adjs[0].examples[0] }}»</div>
+                {% endif %}
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════════════ -->
+    <!--  SEARCH TAB                                             -->
+    <!-- ════════════════════════════════════════════════════════ -->
+    <div class="tab-content" id="tab-search">
+        <div class="search-section">
+            <h3 class="search-title">Найти прилагательные к существительному</h3>
+            <p class="search-hint">Введите существительное в начальной форме (лемму), и инструмент покажет все прилагательные, использованные с этим словом в тексте.</p>
+            <div class="search-row">
+                <input type="text" id="nounInput" placeholder="Например: душа, море, ночь …" class="input input-lg">
+                <button class="btn btn-primary" id="searchBtn" onclick="searchNoun()">Найти →</button>
+            </div>
+            <div id="searchResults" class="search-results"></div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+{% endblock %}

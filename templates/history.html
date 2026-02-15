@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}История — Словарь Писателя{% endblock %}
+
+{% block content %}
+<div class="history-page">
+    <h2 class="page-title">Сохранённые анализы</h2>
+    <p class="page-hint">Данные загружаются из Supabase. Убедитесь, что переменные SUPABASE_URL и SUPABASE_KEY указаны в файле .env</p>
+
+    {% if analyses %}
+    <div class="history-table-wrap">
+        <table class="history-table">
+            <thead>
+                <tr>
+                    <th>Дата</th>
+                    <th>Файл</th>
+                    <th>Символов</th>
+                    <th>Слов</th>
+                    <th>Время</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for a in analyses %}
+            <tr>
+                <td>{{ a.created_at[:16] | replace('T', ' ') }}</td>
+                <td><strong>{{ a.filename }}</strong></td>
+                <td>{{ a.char_count }}</td>
+                <td>{{ a.word_count }}</td>
+                <td>{{ a.processing_time }}с</td>
+                <td><a href="{{ url_for('load_from_history', analysis_id=a.id) }}" class="btn btn-sm">Открыть</a></td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <p>Пока нет сохранённых анализов.</p>
+        <a href="{{ url_for('index') }}" class="btn btn-primary">Загрузить текст</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

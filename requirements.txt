@@ -1,0 +1,14 @@
+# NLP & Text Processing
+natasha>=1.6.0
+pymorphy3>=2.0
+
+# Web Framework
+flask>=3.0
+flask-cors>=4.0
+
+# Database (Supabase)
+supabase>=2.0
+
+# Utilities
+python-dotenv>=1.0
+gunicorn>=21.2
