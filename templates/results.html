@@ -139,10 +139,19 @@
             Для каждого существительного — прилагательные, найденные в тексте рядом с ним
             (через синтаксический анализ зависимостей и окно ±2 токена).
         </p>
-        <div class="coll-grid">
+        <div class="alphabet-bar" id="collAlphabet" aria-label="Навигация по буквам">
+            {% for letter in 'а б в г д е ё ж з и й к л м н о п р с т у ф х ц ч ш щ ъ ы ь э ю я'.split() %}
+            <button type="button" class="alphabet-letter" data-letter="{{ letter }}">{{ letter }}</button>
+            {% endfor %}
+        </div>
+        <div class="coll-grid" id="collGrid">
+            {% set _seen_letters = [] %}
             {% for noun, adjs in result.collocations.noun_adj_index.items() | sort(attribute='0') %}
             {% if adjs | length >= 1 %}
-            <div class="coll-card">
+            {% set _first = noun[0]|lower if noun else '' %}
+            {% set _is_first = _first and _first not in _seen_letters %}
+            {% if _is_first %}{% set _ = _seen_letters.append(_first) %}{% endif %}
+            <div class="coll-card" data-letter="{{ _first }}"{% if _is_first %} id="coll-letter-{{ _first }}"{% endif %}>
                 <div class="coll-noun">{{ noun }}</div>
                 <div class="coll-adjs">
                     {% for a in adjs[:10] %}

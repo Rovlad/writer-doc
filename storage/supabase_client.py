@@ -95,3 +95,15 @@ def load_analysis(analysis_id: str) -> dict | None:
         .execute()
     )
     return result.data
+
+
+def delete_analysis(analysis_id: str) -> bool:
+    """Delete an analysis by its UUID. Returns True if deleted."""
+    client = _get_client()
+    result = (
+        client.table(Config.SUPABASE_TABLE)
+        .delete()
+        .eq("id", analysis_id)
+        .execute()
+    )
+    return True

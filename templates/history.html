@@ -21,13 +21,16 @@
             </thead>
             <tbody>
             {% for a in analyses %}
-            <tr>
+            <tr data-analysis-id="{{ a.id }}">
                 <td>{{ a.created_at[:16] | replace('T', ' ') }}</td>
                 <td><strong>{{ a.filename }}</strong></td>
                 <td>{{ a.char_count }}</td>
                 <td>{{ a.word_count }}</td>
                 <td>{{ a.processing_time }}с</td>
-                <td><a href="{{ url_for('load_from_history', analysis_id=a.id) }}" class="btn btn-sm">Открыть</a></td>
+                <td class="history-actions">
+                    <a href="{{ url_for('load_from_history', analysis_id=a.id) }}" class="btn btn-sm">Открыть</a>
+                    <button type="button" class="btn btn-sm btn-danger btn-delete" data-id="{{ a.id }}" title="Удалить">✕</button>
+                </td>
             </tr>
             {% endfor %}
             </tbody>
@@ -40,4 +43,36 @@
     </div>
     {% endif %}
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.querySelectorAll('.btn-delete').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const id = this.dataset.id;
+        if (!confirm('Удалить этот анализ?')) return;
+        const row = this.closest('tr');
+        btn.disabled = true;
+        btn.textContent = '…';
+
+        fetch(`/api/history/${id}`, { method: 'DELETE' })
+            .then(r => r.json())
+            .then(data => {
+                if (data.error) throw new Error(data.error);
+                row.remove();
+                const tbody = document.querySelector('.history-table tbody');
+                if (tbody && tbody.querySelectorAll('tr').length === 0) {
+                    document.querySelector('.history-table-wrap').innerHTML =
+                        '<div class="empty-state"><p>Пока нет сохранённых анализов.</p>' +
+                        '<a href="{{ url_for("index") }}" class="btn btn-primary">Загрузить текст</a></div>';
+                }
+            })
+            .catch(err => {
+                alert('Ошибка: ' + err.message);
+                btn.disabled = false;
+                btn.textContent = '✕';
+            });
+    });
+});
+</script>
 {% endblock %}

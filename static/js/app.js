@@ -91,6 +91,38 @@ if (nounInput) {
     });
 }
 
+// ── Collocations alphabet navigation ────────────────────────────
+const collAlphabet = document.getElementById('collAlphabet');
+const collGrid = document.getElementById('collGrid');
+
+if (collAlphabet && collGrid) {
+    // Build set of letters that have words
+    const lettersWithWords = new Set();
+    collGrid.querySelectorAll('.coll-card[data-letter]').forEach(card => {
+        const letter = card.dataset.letter;
+        if (letter) lettersWithWords.add(letter);
+    });
+
+    // Mark letters without words as disabled
+    collAlphabet.querySelectorAll('.alphabet-letter').forEach(btn => {
+        if (!lettersWithWords.has(btn.dataset.letter)) {
+            btn.classList.add('alphabet-letter--empty');
+            btn.disabled = true;
+        }
+    });
+
+    // Click: scroll to first word starting with that letter
+    collAlphabet.addEventListener('click', (e) => {
+        const btn = e.target.closest('.alphabet-letter');
+        if (!btn || btn.disabled) return;
+        const letter = btn.dataset.letter;
+        const target = document.getElementById('coll-letter-' + letter);
+        if (target) {
+            target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    });
+}
+
 // ── Save to Supabase ────────────────────────────────────────────
 function saveToSupabase() {
     const btn = event.target;

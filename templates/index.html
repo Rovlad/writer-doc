@@ -4,8 +4,8 @@
 {% block content %}
 <div class="upload-page">
     <div class="upload-card">
-        <h2 class="upload-title">Загрузите текстовый файл</h2>
-        <p class="upload-hint">Проза, поэзия, сборники — файл .txt в кодировке UTF-8 или Windows-1251</p>
+        <h2 class="upload-title">Загрузите или вставьте текст</h2>
+        <p class="upload-hint">Проза, поэзия, сборники — файл .txt или вставьте текст в поле ниже</p>
 
         <form action="{{ url_for('analyze') }}" method="POST" enctype="multipart/form-data" id="uploadForm">
             <div class="dropzone" id="dropzone">
@@ -19,6 +19,9 @@
                     <button type="button" class="file-clear" id="fileClear">✕</button>
                 </div>
             </div>
+
+            <p class="upload-divider">или вставьте текст</p>
+            <textarea name="pasted_text" id="pastedText" class="paste-textarea" placeholder="Вставьте сюда текст для анализа…" rows="8"></textarea>
 
             <button type="submit" class="btn btn-primary" id="submitBtn" disabled>
                 Анализировать текст →
@@ -68,6 +71,17 @@ const fileClear = document.getElementById('fileClear');
 const submitBtn = document.getElementById('submitBtn');
 const form = document.getElementById('uploadForm');
 const overlay = document.getElementById('loadingOverlay');
+const pastedText = document.getElementById('pastedText');
+
+function canSubmit() {
+    const hasFile = fileInput.files && fileInput.files.length > 0;
+    const hasText = pastedText && pastedText.value.trim().length > 0;
+    return hasFile || hasText;
+}
+
+function updateSubmitState() {
+    submitBtn.disabled = !canSubmit();
+}
 
 dropzone.addEventListener('click', () => fileInput.click());
 dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('dragover'); });
@@ -89,14 +103,19 @@ fileClear.addEventListener('click', e => {
     e.stopPropagation();
     fileInput.value = '';
     fileInfo.style.display = 'none';
-    submitBtn.disabled = true;
+    updateSubmitState();
 });
 
 function showFile(file) {
     fileName.textContent = file.name;
     fileSize.textContent = (file.size / 1024).toFixed(1) + ' КБ';
     fileInfo.style.display = 'flex';
-    submitBtn.disabled = false;
+    updateSubmitState();
+}
+
+if (pastedText) {
+    pastedText.addEventListener('input', updateSubmitState);
+    pastedText.addEventListener('paste', updateSubmitState);
 }
 
 form.addEventListener('submit', () => {

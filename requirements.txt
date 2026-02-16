@@ -12,3 +12,4 @@ supabase>=2.0
 # Utilities
 python-dotenv>=1.0
 gunicorn>=21.2
+setuptools<82  # pymorphy2 (natasha dep) needs pkg_resources, removed in setuptools 82+

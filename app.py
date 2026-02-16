@@ -11,6 +11,7 @@ GET  /api/export        → download full analysis as JSON
 POST /api/save           → save to Supabase
 GET  /history           → list of saved analyses (Supabase)
 GET  /history/<id>      → load saved analysis
+DELETE /api/history/<id> → delete analysis from Supabase
 """
 
 from __future__ import annotations
@@ -63,29 +64,37 @@ def index():
 
 @app.route("/analyze", methods=["POST"])
 def analyze():
-    """Accept file upload, run analysis, store in cache, redirect."""
-    if "file" not in request.files:
-        flash("Файл не выбран", "error")
-        return redirect(url_for("index"))
+    """Accept file upload or pasted text, run analysis, store in cache, redirect."""
+    text = None
+    filename = "вставленный_текст.txt"
 
-    file = request.files["file"]
-    if file.filename == "" or not _allowed_file(file.filename):
-        flash("Пожалуйста, загрузите файл .txt", "error")
-        return redirect(url_for("index"))
+    # Prefer pasted text if present
+    pasted = request.form.get("pasted_text", "").strip()
+    if pasted:
+        text = pasted
+    else:
+        # Fall back to file upload
+        if "file" not in request.files:
+            flash("Загрузите файл или вставьте текст", "error")
+            return redirect(url_for("index"))
 
-    # Read text
-    raw_bytes = file.read()
-    # Try UTF-8 first, fallback to cp1251 (common for Russian texts)
-    try:
-        text = raw_bytes.decode("utf-8")
-    except UnicodeDecodeError:
+        file = request.files["file"]
+        if file.filename == "" or not _allowed_file(file.filename):
+            flash("Пожалуйста, загрузите файл .txt или вставьте текст", "error")
+            return redirect(url_for("index"))
+
+        filename = file.filename
+        raw_bytes = file.read()
         try:
-            text = raw_bytes.decode("cp1251")
+            text = raw_bytes.decode("utf-8")
         except UnicodeDecodeError:
-            text = raw_bytes.decode("latin-1")
+            try:
+                text = raw_bytes.decode("cp1251")
+            except UnicodeDecodeError:
+                text = raw_bytes.decode("latin-1")
 
-    if not text.strip():
-        flash("Файл пуст", "error")
+    if not text or not text.strip():
+        flash("Текст пуст. Загрузите файл или вставьте текст.", "error")
         return redirect(url_for("index"))
 
     # Run analysis
@@ -94,11 +103,11 @@ def analyze():
     # Store in cache
     analysis_id = str(uuid.uuid4())
     _analysis_cache[analysis_id] = {
-        "filename": file.filename,
+        "filename": filename,
         "result": result,
     }
     session["analysis_id"] = analysis_id
-    session["filename"] = file.filename
+    session["filename"] = filename
 
     return redirect(url_for("results"))
 
@@ -223,6 +232,18 @@ def load_from_history(analysis_id):
     except Exception as e:
         flash(f"Ошибка: {e}", "error")
         return redirect(url_for("history"))
+
+
+@app.route("/api/history/<analysis_id>", methods=["DELETE"])
+def api_delete_analysis(analysis_id):
+    """Delete an analysis from Supabase."""
+    try:
+        from storage.supabase_client import delete_analysis
+
+        delete_analysis(analysis_id)
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 # ── Run ───────────────────────────────────────────────────────────

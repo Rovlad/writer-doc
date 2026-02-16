@@ -6,13 +6,15 @@ Two strategies are combined for robust coverage:
 1. **Dependency-based** (primary)  
    Natasha's syntax parser annotates each token with `head_id` and `rel`.
    We look for `rel == "amod"` (adjectival modifier) where the head is a NOUN
-   and the dependent is an ADJ.  This captures syntactic pairs regardless of
-   word order.
+   and the dependent is ADJ or VERB (participles like «запертый» are often
+   tagged as VERB but function as adjectives in amod position).
 
 2. **Window-based** (fallback)  
    For poetry and highly elliptical prose the dependency parser may miss
-   relations.  We also scan a ±2-token window around every NOUN for ADJ
-   tokens and record those pairs.
+   relations.  We scan a ±2-token window around every NOUN for ADJ
+   tokens only.  (VERB/participles are excluded here to avoid false
+   positives like «листья вдоль запертых окон» where «запертых» modifies
+   «окон», not «листья».)
 
 Both strategies store pairs as (noun_lemma, adj_lemma).  Duplicates are
 merged and counts accumulated.
@@ -24,6 +26,9 @@ from collections import Counter, defaultdict
 from typing import Any
 
 from natasha import Doc
+
+# POS tags for adjective-like modifiers (ADJ + participles tagged as VERB)
+ADJ_LIKE_POS = ("ADJ", "VERB")
 
 
 def extract_noun_adj_pairs(doc: Doc) -> dict[str, Any]:
@@ -62,7 +67,7 @@ def extract_noun_adj_pairs(doc: Doc) -> dict[str, Any]:
         id_to_token = {t.id: t for t in sent.tokens}
 
         for token in sent.tokens:
-            if token.rel == "amod" and token.pos == "ADJ":
+            if token.rel == "amod" and token.pos in ADJ_LIKE_POS:
                 head = id_to_token.get(token.head_id)
                 if head and head.pos in ("NOUN", "PROPN"):
                     noun_lemma = (head.lemma or head.text).lower()
@@ -92,6 +97,8 @@ def extract_noun_adj_pairs(doc: Doc) -> dict[str, Any]:
             if j == i:
                 continue
             other = tokens[j]
+            # Only ADJ in window (not VERB) to avoid false positives when
+            # a participle modifies a different noun nearby, e.g. «листья вдоль запертых окон»
             if other.pos != "ADJ":
                 continue
             adj_lemma = (other.lemma or other.text).lower()
